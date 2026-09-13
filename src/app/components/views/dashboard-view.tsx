@@ -1,3 +1,4 @@
+import { useStudents } from '../../state/students-context';
 import { Link } from 'react-router';
 import { AlertCircle, DollarSign, TrendingUp, Users } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -46,6 +47,9 @@ const alerts = [
 ];
 
 export function DashboardView({ config }: DashboardViewProps) {
+  const { students } = useStudents();
+  const activeStudents = students.filter(student => !student.archived);
+  const groupCount = new Set(activeStudents.map(student => student.group.trim().toLocaleLowerCase('ru'))).size;
   const hasFinance = config.enabledModules.includes('finance');
   const hasScheduling = config.enabledModules.includes('scheduling');
 
@@ -53,7 +57,7 @@ export function DashboardView({ config }: DashboardViewProps) {
     <div className="p-6">
       <div className="mb-6">
         <h2 className="text-2xl">Главная</h2>
-        <p className="text-muted-foreground mt-1">Сначала важные действия, затем аналитика.</p>
+        <p className="text-muted-foreground mt-1">Ученики и группы — из вашего списка. Уведомления и графики — демонстрационные.</p>
       </div>
 
       <div className="bg-card rounded-lg border border-border p-6 mb-6">
@@ -85,17 +89,17 @@ export function DashboardView({ config }: DashboardViewProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-card rounded-lg border border-border p-6">
-          <h4 className="text-sm text-muted-foreground mb-2">Всего учеников</h4>
-          <p className="text-2xl">234</p>
-          <p className="text-xs text-[#10b981] mt-1">+8 в этом месяце</p>
+          <h4 className="text-sm text-muted-foreground mb-2">Активных учеников</h4>
+          <p className="text-2xl">{activeStudents.length}</p>
+          <p className="text-xs text-[#10b981] mt-1">Без архивных карточек</p>
         </div>
         <div className="bg-card rounded-lg border border-border p-6">
           <h4 className="text-sm text-muted-foreground mb-2">Активных групп</h4>
-          <p className="text-2xl">18</p>
-          <p className="text-xs text-muted-foreground mt-1">5 направлений</p>
+          <p className="text-2xl">{groupCount}</p>
+          <p className="text-xs text-muted-foreground mt-1">По активным ученикам</p>
         </div>
         <div className="bg-card rounded-lg border border-border p-6">
-          <h4 className="text-sm text-muted-foreground mb-2">Сотрудников</h4>
+          <h4 className="text-sm text-muted-foreground mb-2">Сотрудников (демо)</h4>
           <p className="text-2xl">12</p>
           <p className="text-xs text-muted-foreground mt-1">8 тренеров, 4 админ.</p>
         </div>

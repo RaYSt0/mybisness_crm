@@ -4,6 +4,8 @@ const screens = [
   ['/', 'Главная', 'dashboard'],
   ['/students', 'Ученики', 'students'],
   ['/students/1', 'Иван Иванов', 'student-profile'],
+  ['/students/new', 'Добавить ученика', 'student-create'],
+  ['/students/1/edit', 'Редактировать ученика', 'student-edit'],
   ['/constructor', 'CRM Конструктор', 'constructor-step-1'],
   ['/finance', 'Финансы', 'finance'],
   ['/settings', 'Команда и права доступа', 'settings'],
@@ -85,4 +87,66 @@ test('configuration recovers from corrupt or unavailable browser storage', async
   await page.getByRole('button', { name: 'Далее' }).click();
   await page.getByRole('switch', { name: 'Мед-карты', exact: true }).check();
   await expect(page.getByRole('switch', { name: 'Мед-карты', exact: true })).toBeChecked();
+});
+
+test('student creation, validation, editing, archive and restore survive reload', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.goto('/students');
+  await page.getByRole('link', { name: 'Добавить ученика' }).click();
+  await page.getByLabel('Имя ученика').fill('   ');
+  await page.getByLabel('Группа', { exact: false }).fill('Группа Б');
+  await page.getByRole('button', { name: 'Сохранить ученика' }).click();
+  await expect(page.getByRole('alert')).toContainText('Поля не могут состоять только из пробелов');
+  await page.getByLabel('Имя ученика').fill('Анна Соколова');
+  await page.getByLabel('Дата рождения').fill('2999-01-01');
+  await page.getByRole('button', { name: 'Сохранить ученика' }).click();
+  await expect(page.getByRole('alert')).toContainText('Дата рождения не может быть в будущем');
+  await page.getByLabel('Дата рождения').fill('2014-02-03');
+  await page.getByLabel('Email', { exact: true }).fill('anna@example.com');
+  await page.getByLabel('Заметки').fill('Пробное занятие в субботу');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'docs/screenshots/student-create-mobile.png', fullPage: true, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Сохранить ученика' }).click();
+  await expect(page.getByRole('heading', { name: 'Анна Соколова', exact: true })).toBeVisible();
+  const profileUrl = page.url();
+  await page.reload();
+  await expect(page.getByText('Пробное занятие в субботу')).toBeVisible();
+  await page.getByRole('button', { name: 'Посещаемость', exact: true }).click();
+  await expect(page.getByText(/Посещений пока нет/)).toBeVisible();
+  await page.getByRole('link', { name: 'Редактировать', exact: true }).click();
+  await page.getByLabel('Имя ученика').fill('Анна Смирнова');
+  await page.getByRole('button', { name: 'Сохранить ученика' }).click();
+  await expect(page).toHaveURL(profileUrl);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Анна Смирнова', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'В архив', exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Восстановить ученика' })).toBeVisible();
+  await page.goto('/students');
+  await expect(page.getByRole('heading', { name: 'Анна Смирнова' })).toHaveCount(0);
+  await page.getByLabel('Статус', { exact: true }).selectOption('archived');
+  await expect(page.getByRole('heading', { name: 'Анна Смирнова' })).toBeVisible();
+  await page.getByRole('link', { name: 'Открыть карточку' }).click();
+  await page.getByRole('button', { name: 'Восстановить ученика' }).click();
+  await page.goto('/students');
+  await expect(page.getByRole('status')).toHaveText('Найдено учеников: 2');
+  await page.getByLabel('Поиск по имени или группе').fill('Группа Б');
+  await expect(page.getByRole('status')).toHaveText('Найдено учеников: 1');
+  await page.goto('/students/unknown-student');
+  await expect(page.getByRole('heading', { name: 'Ученик не найден' })).toBeVisible();
+});
+
+test('student storage failures are visible and unsaved changes work in memory', async ({ page }) => {
+  await page.goto('/students');
+  await page.evaluate(() => localStorage.setItem('mybusiness:students:v1', '{corrupt'));
+  await page.reload();
+  await expect(page.getByRole('alert')).toContainText('Не удалось прочитать');
+  expect(await page.evaluate(() => localStorage.getItem('mybusiness:students:v1'))).toBe('{corrupt');
+  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new Error('Quota exceeded'); }; });
+  await page.getByRole('link', { name: 'Добавить ученика' }).click();
+  await page.getByLabel('Имя ученика').fill('Тестовый ученик');
+  await page.getByLabel('Группа', { exact: false }).fill('Тестовая группа');
+  await page.getByRole('button', { name: 'Сохранить ученика' }).click();
+  await expect(page.getByRole('heading', { name: 'Тестовый ученик', exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Не удалось сохранить');
 });

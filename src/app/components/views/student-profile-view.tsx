@@ -1,242 +1,222 @@
-import { Link } from 'react-router';
-import { useState } from 'react';
-import { User, Phone, Mail, Calendar, FileText, CreditCard, Clock } from 'lucide-react';
-import { BusinessConfig } from '../../config/business-config';
+import { Link, useParams } from "react-router";
+import { useState } from "react";
+import { BusinessConfig } from "../../config/business-config";
+import { useStudents } from "../../state/students-context";
+import { attendanceRecords, paymentRecords } from "../../data/demo-records";
+import { Button } from "../ui/button";
 
-const attendanceRecords = [
-  { date: '14.05.2026', status: 'Присутствовал', time: '09:00' },
-  { date: '12.05.2026', status: 'Присутствовал', time: '09:00' },
-  { date: '10.05.2026', status: 'По уважительной', time: '-' },
-  { date: '07.05.2026', status: 'Отсутствовал', time: '-' },
-  { date: '05.05.2026', status: 'Присутствовал', time: '09:00' },
-];
-
-const paymentRecords = [
-  { date: '01.05.2026', amount: '18 750 ₽', status: 'Оплачено', method: 'Банковская карта' },
-  { date: '01.04.2026', amount: '18 750 ₽', status: 'Оплачено', method: 'Банковский перевод' },
-  { date: '01.03.2026', amount: '18 750 ₽', status: 'Оплачено', method: 'Банковская карта' },
-];
-
-interface StudentProfileViewProps {
-  config: BusinessConfig;
-}
-
-export function StudentProfileView({ config }: StudentProfileViewProps) {
-  const [activeTab, setActiveTab] = useState('Информация');
-  const hasSubscriptions = config.enabledModules.includes('subscriptions');
-  const hasMedical = config.enabledModules.includes('medical');
+export function StudentProfileView({ config }: { config: BusinessConfig }) {
+  const { studentId } = useParams();
+  const { students, setArchived } = useStudents();
+  const student = students.find((item) => item.id === studentId);
+  const [selectedTab, setSelectedTab] = useState("Информация");
   const tabs = [
-    'Информация',
-    'Посещаемость',
-    ...(hasSubscriptions ? ['Платежи'] : []),
-    ...(hasMedical ? ['Документы'] : []),
+    "Информация",
+    ...(config.enabledModules.includes("scheduling") ? ["Посещаемость"] : []),
+    ...(config.enabledModules.includes("subscriptions") ? ["Платежи"] : []),
+    ...(config.enabledModules.includes("medical") ? ["Документы"] : []),
+  ];
+  const activeTab = tabs.includes(selectedTab) ? selectedTab : "Информация";
+
+  if (!student)
+    return (
+      <section className="p-6 space-y-4">
+        <h2 className="text-2xl">Ученик не найден</h2>
+        <Button asChild>
+          <Link to="/students">Все ученики</Link>
+        </Button>
+      </section>
+    );
+
+  const isDemo = student.id === "1";
+  const initials = student.name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("");
+  const details = [
+    ["Полное имя", student.name],
+    ["Группа", student.group],
+    [
+      "Дата рождения",
+      student.birthDate
+        ? student.birthDate.split("-").reverse().join(".")
+        : "Не указана",
+    ],
+    ["Родитель / опекун", student.guardian || "Не указан"],
+    ["Телефон", student.phone || "Не указан"],
+    ["Email", student.email || "Не указан"],
   ];
 
   return (
-    <div className="p-6">
-      <Link to="/students" className="inline-block text-primary mb-4 hover:underline">← Все ученики</Link>
+    <section className="p-6 space-y-4">
+      <Link
+        to="/students"
+        className="inline-block text-primary hover:underline"
+      >
+        ← Все ученики
+      </Link>
       <div className="bg-card rounded-lg border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-[#2563eb] to-[#3b82f6] p-8 text-white">
           <div className="profile-heading flex items-center gap-6">
-            <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-3xl">
-              ИИ
+            <div className="w-24 h-24 shrink-0 rounded-full bg-white/20 flex items-center justify-center text-3xl">
+              {initials}
             </div>
-            <div>
-              <h2 className="text-3xl mb-2">Иван Иванов</h2>
-              <div className="profile-details flex items-center gap-4 text-white/90">
-                <span className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Группа А - Продвинутый балет
-                </span>
-                <span className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Зачислен янв. 2025
-                </span>
-              </div>
+            <div className="min-w-0">
+              <h2 className="text-3xl mb-2">{student.name}</h2>
+              <p>{student.group}</p>
+              <p className="mt-2 text-sm">
+                {student.archived ? "В архиве" : "Активный ученик"}
+              </p>
             </div>
           </div>
         </div>
-
-        <div className="border-b border-border">
-          <div className="profile-tabs flex">
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-4 transition-colors relative ${
-                  activeTab === tab
-                    ? 'text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {tab}
-                {activeTab === tab && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
-                )}
-              </button>
-            ))}
-          </div>
+        <div className="p-4 flex flex-wrap gap-3 border-b border-border">
+          <Button asChild variant="outline">
+            <Link to={`/students/${student.id}/edit`}>Редактировать</Link>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setArchived(student.id, !student.archived)}
+          >
+            {student.archived ? "Восстановить ученика" : "В архив"}
+          </Button>
         </div>
-
+        <div className="profile-tabs flex border-b border-border">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              aria-pressed={activeTab === tab}
+              onClick={() => setSelectedTab(tab)}
+              className={`px-6 py-4 border-b-2 ${activeTab === tab ? "text-primary border-primary" : "text-muted-foreground border-transparent"}`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
         <div className="p-6">
-          {activeTab === 'Информация' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-lg mb-4">Персональная информация</h3>
-                <div>
-                  <label className="text-sm text-muted-foreground">Полное имя</label>
-                  <p className="mt-1">Иван Иванов</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Дата рождения</label>
-                  <p className="mt-1">15 марта 2015</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Родитель/Опекун</label>
-                  <p className="mt-1">Сергей Иванов</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    Телефон
-                  </label>
-                  <p className="mt-1">+7 (999) 123-45-67</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Email
-                  </label>
-                  <p className="mt-1">s.ivanov@email.ru</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg mb-4">Дополнительные поля</h3>
-                <div>
-                  <label className="text-sm text-muted-foreground">Размер формы</label>
-                  <p className="mt-1">Средний</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Экстренный контакт</label>
-                  <p className="mt-1">Анна Иванова - +7 (999) 987-65-43</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Медицинские заметки</label>
-                  <p className="mt-1">Аллергий не выявлено</p>
-                </div>
-
-                <div className="mt-6 p-4 bg-accent rounded-lg border border-border">
-                  <h4 className="text-sm mb-3">Статус абонемента</h4>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Осталось занятий</span>
-                    <span>5 / 8</span>
-                  </div>
-                  <div className="w-full bg-border rounded-full h-2">
-                    <div className="bg-[#10b981] h-2 rounded-full" style={{ width: '62.5%' }}></div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">Продление 1 июня 2026</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'Посещаемость' && (
-            <div>
-              <h3 className="text-lg mb-4">История посещений</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm text-muted-foreground">Дата</th>
-                      <th className="text-left py-3 px-4 text-sm text-muted-foreground">Статус</th>
-                      <th className="text-left py-3 px-4 text-sm text-muted-foreground">Время</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceRecords.map((record, index) => (
-                      <tr key={index} className="border-b border-border hover:bg-accent">
-                        <td className="py-3 px-4 flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-muted-foreground" />
-                          {record.date}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-3 py-1 rounded-full text-xs ${
-                            record.status === 'Присутствовал' ? 'bg-[#10b981]/10 text-[#10b981]' :
-                            record.status === 'Отсутствовал' ? 'bg-[#ef4444]/10 text-[#ef4444]' :
-                            'bg-[#f59e0b]/10 text-[#f59e0b]'
-                          }`}>
-                            {record.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 flex items-center gap-2">
-                          {record.time !== '-' && <Clock className="w-4 h-4 text-muted-foreground" />}
-                          {record.time}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'Платежи' && (
-            <div>
-              <h3 className="text-lg mb-4">История платежей</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm text-muted-foreground">Дата</th>
-                      <th className="text-left py-3 px-4 text-sm text-muted-foreground">Сумма</th>
-                      <th className="text-left py-3 px-4 text-sm text-muted-foreground">Статус</th>
-                      <th className="text-left py-3 px-4 text-sm text-muted-foreground">Метод</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paymentRecords.map((payment, index) => (
-                      <tr key={index} className="border-b border-border hover:bg-accent">
-                        <td className="py-3 px-4">{payment.date}</td>
-                        <td className="py-3 px-4">{payment.amount}</td>
-                        <td className="py-3 px-4">
-                          <span className="px-3 py-1 rounded-full text-xs bg-[#10b981]/10 text-[#10b981]">
-                            {payment.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 flex items-center gap-2">
-                          <CreditCard className="w-4 h-4 text-muted-foreground" />
-                          {payment.method}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'Документы' && (
-            <div>
-              <h3 className="text-lg mb-4">Документы</h3>
-              <div className="space-y-3">
-                {['Форма зачисления', 'Медицинская справка', 'Разрешение на фото'].map((doc, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent transition-colors">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-primary" />
-                      <span>{doc}</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">Демо</span>
+          {activeTab === "Информация" && (
+            <div className="space-y-6">
+              <h3 className="text-lg">Персональная информация</h3>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {details.map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-sm text-muted-foreground">{label}</dt>
+                    <dd className="mt-1 break-words">{value}</dd>
                   </div>
                 ))}
-                <button disabled title="Загрузка будет доступна после подключения сервера" className="w-full py-3 border-2 border-dashed border-border rounded-lg text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-                  + Загрузить документ
-                </button>
+              </dl>
+              <div>
+                <h3 className="text-lg mb-2">Заметки</h3>
+                <p className="whitespace-pre-wrap break-words">
+                  {student.notes || "Заметок пока нет."}
+                </p>
               </div>
+              {student.archived && (
+                <p className="text-muted-foreground">
+                  Карточка сохранена в архиве. Восстановите ученика, чтобы
+                  вернуть его в активный список.
+                </p>
+              )}
+            </div>
+          )}
+          {activeTab === "Посещаемость" && (
+            <div className="space-y-4">
+              <h3 className="text-lg">История посещений</h3>
+              {isDemo ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr>
+                        <th className="p-3">Дата</th>
+                        <th className="p-3">Статус</th>
+                        <th className="p-3">Время</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendanceRecords.map((record) => (
+                        <tr
+                          key={record.date}
+                          className="border-t border-border"
+                        >
+                          <td className="p-3">{record.date}</td>
+                          <td className="p-3">{record.status}</td>
+                          <td className="p-3">{record.time}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p>
+                  Посещений пока нет. Учёт занятий появится на следующем этапе.
+                </p>
+              )}
+            </div>
+          )}
+          {activeTab === "Платежи" && (
+            <div className="space-y-4">
+              <h3 className="text-lg">История платежей</h3>
+              {isDemo ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr>
+                        <th className="p-3">Дата</th>
+                        <th className="p-3">Сумма</th>
+                        <th className="p-3">Статус</th>
+                        <th className="p-3">Метод</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paymentRecords.map((record) => (
+                        <tr
+                          key={record.date}
+                          className="border-t border-border"
+                        >
+                          <td className="p-3">{record.date}</td>
+                          <td className="p-3 whitespace-nowrap">
+                            {record.amount}
+                          </td>
+                          <td className="p-3">{record.status}</td>
+                          <td className="p-3">{record.method}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p>Платежей пока нет. Приём оплаты в прототипе недоступен.</p>
+              )}
+            </div>
+          )}
+          {activeTab === "Документы" && (
+            <div className="space-y-4">
+              <h3 className="text-lg">Документы</h3>
+              {isDemo ? (
+                [
+                  "Форма зачисления",
+                  "Медицинская справка",
+                  "Разрешение на фото",
+                ].map((name) => (
+                  <div
+                    key={name}
+                    className="flex flex-wrap justify-between gap-3 p-4 border border-border rounded-lg"
+                  >
+                    <span>{name}</span>
+                    <span className="text-muted-foreground">Демо</span>
+                  </div>
+                ))
+              ) : (
+                <p>Документов пока нет.</p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Загрузка файлов появится при подключении сервера.
+              </p>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
