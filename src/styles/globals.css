@@ -1,0 +1,25 @@
+.app-shell { min-height: 100dvh; display: flex; flex-direction: column; }
+.app-body { display: flex; flex: 1; align-items: stretch; }
+.app-sidebar { width: 16rem; flex-shrink: 0; }
+main { overflow-wrap: break-word; }
+main table { overflow-wrap: normal; }
+main th, main td { min-width: 6rem; }
+main table th:first-child, main table td:first-child { min-width: 10rem; }
+.skip-link { position: absolute; top: -5rem; left: 1rem; z-index: 50; padding: .5rem; background: white; color: #1d4ed8; }
+.skip-link:focus { top: .5rem; }
+button:focus-visible, a:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 767px) {
+  .app-body { flex-direction: column; }
+  .app-sidebar { width: 100%; border-right: 0; border-bottom: 1px solid var(--border); }
+  .app-sidebar > div { padding: 1rem; }
+  .app-sidebar nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: .5rem; gap: .25rem; }
+  .app-sidebar nav a { margin: 0; padding: .6rem; font-size: .875rem; }
+  main > .p-6 { padding: 1rem; }
+  main .p-8 { padding: 1rem; }
+  .dashboard-alert, .profile-heading, .team-heading { flex-wrap: wrap; }
+  .profile-details, .chart-legend { flex-wrap: wrap; }
+  .profile-tabs { overflow-x: auto; }
+  .profile-tabs button { white-space: nowrap; padding: 1rem; }
+  .wizard-connector { width: 3rem; }
+}

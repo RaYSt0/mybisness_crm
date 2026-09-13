@@ -1,0 +1,88 @@
+import { test, expect } from '@playwright/test';
+
+const screens = [
+  ['/', 'Главная', 'dashboard'],
+  ['/students', 'Ученики', 'students'],
+  ['/students/1', 'Иван Иванов', 'student-profile'],
+  ['/constructor', 'CRM Конструктор', 'constructor-step-1'],
+  ['/finance', 'Финансы', 'finance'],
+  ['/settings', 'Команда и права доступа', 'settings'],
+  ['/help', 'Помощь', 'help'],
+  ['/missing', 'Страница не найдена', 'not-found'],
+];
+
+test('all pages load directly and fit desktop and mobile screens', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const [path, heading, name] of screens) {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `docs/screenshots/${name}${width === 390 ? '-mobile' : ''}.png`, fullPage: true, animations: 'disabled' });
+    }
+  }
+  expect(errors).toEqual([]);
+});
+
+test('navigation, search, profile tabs, configuration persistence and role details', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('navigation').getByRole('link', { name: 'Ученики', exact: true }).click();
+  await expect(page).toHaveURL(/\/students$/);
+  await page.getByLabel('Поиск по имени или группе').fill('Несуществующий');
+  await expect(page.getByRole('status')).toHaveText('Найдено учеников: 0');
+  await page.getByRole('button', { name: 'Сбросить поиск' }).click();
+  await page.getByRole('link', { name: 'Открыть карточку' }).click();
+  await expect(page).toHaveURL(/\/students\/1$/);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Иван Иванов', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/students$/);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/students\/1$/);
+  for (const [tab, heading, name] of [['Посещаемость', 'История посещений', 'attendance'], ['Платежи', 'История платежей', 'payments']]) {
+    await page.getByRole('button', { name: tab, exact: true }).click();
+    await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+    await page.screenshot({ path: `docs/screenshots/student-${name}.png`, fullPage: true, animations: 'disabled' });
+  }
+  await page.getByRole('navigation').getByRole('link', { name: 'Конструктор CRM' }).click();
+  await page.getByRole('button', { name: /Спортивная секция/ }).click();
+  await page.getByRole('button', { name: 'Далее' }).click();
+  await page.getByRole('switch', { name: 'Мед-карты', exact: true }).check();
+  await page.getByRole('switch', { name: 'Финансы', exact: true }).uncheck();
+  await page.screenshot({ path: 'docs/screenshots/constructor-step-2.png', fullPage: true, animations: 'disabled' });
+  await page.reload();
+  await page.getByRole('button', { name: 'Далее' }).click();
+  await expect(page.getByRole('switch', { name: 'Финансы', exact: true })).not.toBeChecked();
+  await expect(page.getByRole('switch', { name: 'Мед-карты', exact: true })).toBeChecked();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Финансы', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Далее' }).click();
+  await expect(page.getByText('Спортивная секция', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'docs/screenshots/constructor-step-3.png', fullPage: true, animations: 'disabled' });
+  await page.goto('/finance');
+  await expect(page.getByText(/Финансовый модуль выключен/)).toBeVisible();
+  await page.screenshot({ path: 'docs/screenshots/finance-disabled.png', fullPage: true, animations: 'disabled' });
+  await page.goto('/students/1');
+  await page.getByRole('button', { name: 'Документы', exact: true }).click();
+  await expect(page.getByText('Медицинская справка', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'docs/screenshots/student-documents.png', fullPage: true, animations: 'disabled' });
+  await page.goto('/settings');
+  await page.getByRole('button', { name: 'Просмотреть права: Мария Петрова' }).click();
+  await expect(page.getByText(/Просмотр прав для:/)).toContainText('Мария Петрова');
+  await page.screenshot({ path: 'docs/screenshots/settings-permissions.png', fullPage: true, animations: 'disabled' });
+});
+
+test('configuration recovers from corrupt or unavailable browser storage', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('mybusiness:business-config:v1', '{broken'));
+  await page.goto('/constructor');
+  await expect(page.getByRole('heading', { name: 'CRM Конструктор' })).toBeVisible();
+  await page.addInitScript(() => {
+    Storage.prototype.getItem = () => { throw new Error('Storage unavailable'); };
+    Storage.prototype.setItem = () => { throw new Error('Storage unavailable'); };
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Далее' }).click();
+  await page.getByRole('switch', { name: 'Мед-карты', exact: true }).check();
+  await expect(page.getByRole('switch', { name: 'Мед-карты', exact: true })).toBeChecked();
+});
