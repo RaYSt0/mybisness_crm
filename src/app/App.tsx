@@ -1,7 +1,7 @@
 import { StudentsProvider, useStudents } from "./state/students-context";
 import { StudentsView } from "./components/views/students-view";
 import { StudentFormView } from "./components/views/student-form-view";
-import { BrowserRouter, Link, Route, Routes } from "react-router";
+import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router";
 import { Header } from "./components/layout/header";
 import { Sidebar } from "./components/layout/sidebar";
 import { DashboardView } from "./components/views/dashboard-view";
@@ -12,14 +12,28 @@ import { FinanceView } from "./components/views/finance-view";
 import { HelpView } from "./components/views/help-view";
 import { Button } from "./components/ui/button";
 import { useBusinessConfig } from "./state/use-business-config";
+import { OnboardingView } from "./components/views/onboarding-view";
 
 function Workspace() {
   const { storageWarning } = useStudents();
   const { config, setConfig } = useBusinessConfig();
+
+  if (!config.isOnboardingCompleted) {
+    return (
+      <Routes>
+        <Route
+          path="/onboarding"
+          element={<OnboardingView config={config} onConfigChange={setConfig} />}
+        />
+        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <>
       <div className="app-shell bg-background">
-        <Header />
+        <Header config={config} />
         <div className="app-body">
           <Sidebar config={config} />
           <main id="main-content" className="min-w-0 flex-1">
@@ -46,7 +60,7 @@ function Workspace() {
                 path="/students/:studentId"
                 element={<StudentProfileView config={config} />}
               />
-              <Route path="/settings" element={<SettingsView />} />
+              <Route path="/settings" element={<SettingsView config={config} />} />
               <Route
                 path="/constructor"
                 element={
@@ -81,7 +95,7 @@ function Workspace() {
           </main>
         </div>
         <footer className="border-t border-border p-3 text-center text-xs text-muted-foreground">
-          МойБизнес CRM · Учебный прототип · Демонстрационные данные
+          {config.organizationName} · Учебный прототип · Демонстрационные данные
         </footer>
       </div>
     </>

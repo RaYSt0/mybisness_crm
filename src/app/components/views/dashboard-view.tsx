@@ -56,8 +56,8 @@ export function DashboardView({ config }: DashboardViewProps) {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl">Главная</h2>
-        <p className="text-muted-foreground mt-1">Ученики и группы — из вашего списка. Уведомления и графики — демонстрационные.</p>
+        <h2 className="text-2xl">{config.organizationName}</h2>
+        <p className="text-muted-foreground mt-1">Рабочее пространство владельца {config.ownerName}. Ученики и группы — из вашего списка.</p>
       </div>
 
       <div className="bg-card rounded-lg border border-border p-6 mb-6">

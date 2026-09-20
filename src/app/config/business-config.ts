@@ -20,8 +20,12 @@ export interface ModuleDefinition {
 }
 
 export interface BusinessConfig {
+  organizationName: string;
+  ownerName: string;
+  ownerEmail: string;
   presetId: BusinessPresetId;
   enabledModules: BusinessModuleId[];
+  isOnboardingCompleted: boolean;
 }
 
 export const BUSINESS_PRESETS: BusinessPreset[] = [
@@ -77,12 +81,16 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
 ];
 
 export const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
+  organizationName: '',
+  ownerName: '',
+  ownerEmail: '',
   presetId: 'dance',
   enabledModules: MODULE_DEFINITIONS.filter((module) => module.defaultEnabled).map((module) => module.id),
+  isOnboardingCompleted: false,
 };
 
 export const STORAGE_KEYS = {
-  businessConfig: 'mybusiness:business-config:v1',
+  businessConfig: 'mybusiness:business-config:v2',
 } as const;
 
 export const MODULE_LABELS: Record<BusinessModuleId, string> = {

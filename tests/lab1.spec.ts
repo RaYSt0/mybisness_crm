@@ -1,12 +1,29 @@
 import { test, expect } from '@playwright/test';
 
+const completedConfig = {
+  organizationName: 'Студия «Ритм»',
+  ownerName: 'Тимур',
+  ownerEmail: 'timur@example.com',
+  presetId: 'dance',
+  enabledModules: ['subscriptions', 'scheduling', 'finance'],
+  isOnboardingCompleted: true,
+};
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript((config) => {
+    if (!localStorage.getItem('mybusiness:business-config:v2')) {
+      localStorage.setItem('mybusiness:business-config:v2', JSON.stringify(config));
+    }
+  }, completedConfig);
+});
+
 const screens = [
-  ['/', 'Главная', 'dashboard'],
+  ['/', 'Студия «Ритм»', 'dashboard'],
   ['/students', 'Ученики', 'students'],
   ['/students/1', 'Иван Иванов', 'student-profile'],
   ['/students/new', 'Добавить ученика', 'student-create'],
   ['/students/1/edit', 'Редактировать ученика', 'student-edit'],
-  ['/constructor', 'CRM Конструктор', 'constructor-step-1'],
+  ['/constructor', 'Настройка CRM «Студия «Ритм»»', 'constructor-step-1'],
   ['/finance', 'Финансы', 'finance'],
   ['/settings', 'Команда и права доступа', 'settings'],
   ['/help', 'Помощь', 'help'],
@@ -20,7 +37,7 @@ test('all pages load directly and fit desktop and mobile screens', async ({ page
     await page.setViewportSize({ width, height: 1000 });
     for (const [path, heading, name] of screens) {
       await page.goto(path);
-      await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: heading, exact: true }).last()).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `docs/screenshots/${name}${width === 390 ? '-mobile' : ''}.png`, fullPage: true, animations: 'disabled' });
     }
@@ -48,7 +65,8 @@ test('navigation, search, profile tabs, configuration persistence and role detai
     await expect(page.getByRole('heading', { name: heading })).toBeVisible();
     await page.screenshot({ path: `docs/screenshots/student-${name}.png`, fullPage: true, animations: 'disabled' });
   }
-  await page.getByRole('navigation').getByRole('link', { name: 'Конструктор CRM' }).click();
+  await page.getByRole('navigation').getByRole('link', { name: 'Настройки', exact: true }).click();
+  await page.getByRole('link', { name: 'Изменить модули CRM' }).click();
   await page.getByRole('button', { name: /Спортивная секция/ }).click();
   await page.getByRole('button', { name: 'Далее' }).click();
   await page.getByRole('switch', { name: 'Мед-карты', exact: true }).check();
@@ -75,18 +93,40 @@ test('navigation, search, profile tabs, configuration persistence and role detai
   await page.screenshot({ path: 'docs/screenshots/settings-permissions.png', fullPage: true, animations: 'disabled' });
 });
 
-test('configuration recovers from corrupt or unavailable browser storage', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('mybusiness:business-config:v1', '{broken'));
-  await page.goto('/constructor');
-  await expect(page.getByRole('heading', { name: 'CRM Конструктор' })).toBeVisible();
-  await page.addInitScript(() => {
-    Storage.prototype.getItem = () => { throw new Error('Storage unavailable'); };
-    Storage.prototype.setItem = () => { throw new Error('Storage unavailable'); };
-  });
-  await page.reload();
+test('onboarding validates registration and creates an individual CRM', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('mybusiness:business-config:v2', JSON.stringify({
+    organizationName: '', ownerName: '', ownerEmail: '', presetId: 'dance',
+    enabledModules: ['subscriptions', 'scheduling', 'finance'], isOnboardingCompleted: false,
+  })));
+  await page.goto('/students');
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await expect(page.getByRole('heading', { name: 'Создайте свою CRM' })).toBeVisible();
+  await page.getByRole('button', { name: 'Далее' }).click();
+  await expect(page.getByRole('alert')).toContainText('Укажите имя и email');
+  await page.getByLabel('Ваше имя *').fill('Анна');
+  await page.getByLabel('Email *').fill('anna@example.com');
+  await page.getByRole('button', { name: 'Далее' }).click();
+  await page.getByLabel('Название бизнеса *').fill('Школа «Импульс»');
+  await page.getByRole('button', { name: 'Школа танцев' }).click();
   await page.getByRole('button', { name: 'Далее' }).click();
   await page.getByRole('switch', { name: 'Мед-карты', exact: true }).check();
-  await expect(page.getByRole('switch', { name: 'Мед-карты', exact: true })).toBeChecked();
+  await page.getByRole('button', { name: 'Далее' }).click();
+  await expect(page.getByText('Школа «Импульс»', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'docs/screenshots/onboarding-summary.png', fullPage: true, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Открыть CRM' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Школа «Импульс»', exact: true })).toBeVisible();
+  await expect(page.locator('.app-sidebar').getByText('Школа «Импульс»', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Анна', { exact: true })).toBeVisible();
+});
+
+test('configuration recovers from corrupt browser storage', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('mybusiness:business-config:v2', '{broken'));
+  await page.goto('/constructor');
+  await expect(page.getByRole('heading', { name: 'Создайте свою CRM' })).toBeVisible();
+  await expect(page.getByLabel('Ваше имя *')).toHaveValue('');
 });
 
 test('student creation, validation, editing, archive and restore survive reload', async ({ page }) => {

@@ -22,8 +22,8 @@ export function ConfigConstructorView({ config, onConfigChange }: ConfigConstruc
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h2 className="text-2xl">CRM Конструктор</h2>
-        <p className="text-muted-foreground mt-1">Соберите рабочее пространство бизнеса за 3 шага</p>
+        <h2 className="text-2xl">Настройка CRM «{config.organizationName}»</h2>
+        <p className="text-muted-foreground mt-1">Измените тип бизнеса и состав модулей рабочего пространства</p>
       </div>
 
       <div className="flex items-center justify-center mb-8">
@@ -110,8 +110,12 @@ export function ConfigConstructorView({ config, onConfigChange }: ConfigConstruc
         {currentStep === 3 && (
           <div>
             <h3 className="text-xl mb-2">Шаг 3: Проверка конфигурации</h3>
-            <p className="text-muted-foreground mb-6">Конфигурация уже сохранена в браузере и применяется к интерфейсу</p>
+            <p className="text-muted-foreground mb-6">Настройки сохранены в браузере и применяются к интерфейсу {config.organizationName}</p>
             <div className="space-y-3">
+              <div className="p-4 bg-accent rounded-lg border border-border">
+                <p className="text-sm text-muted-foreground">Название CRM</p>
+                <p className="mt-1">{config.organizationName}</p>
+              </div>
               <div className="p-4 bg-accent rounded-lg border border-border">
                 <p className="text-sm text-muted-foreground">Выбранный пресет</p>
                 <p className="mt-1">{BUSINESS_PRESETS.find((preset) => preset.id === config.presetId)?.name}</p>

@@ -9,13 +9,24 @@ function readBusinessConfig(): BusinessConfig {
     }
 
     const parsed = JSON.parse(value) as Partial<BusinessConfig>;
-    if (!BUSINESS_PRESETS.some(preset => preset.id === parsed.presetId) || !Array.isArray(parsed.enabledModules)) {
+    if (
+      typeof parsed.organizationName !== 'string' ||
+      typeof parsed.ownerName !== 'string' ||
+      typeof parsed.ownerEmail !== 'string' ||
+      typeof parsed.isOnboardingCompleted !== 'boolean' ||
+      !BUSINESS_PRESETS.some(preset => preset.id === parsed.presetId) ||
+      !Array.isArray(parsed.enabledModules)
+    ) {
       return DEFAULT_BUSINESS_CONFIG;
     }
 
     return {
+      organizationName: parsed.organizationName.trim(),
+      ownerName: parsed.ownerName.trim(),
+      ownerEmail: parsed.ownerEmail.trim(),
       presetId: parsed.presetId as BusinessConfig['presetId'],
       enabledModules: [...new Set(parsed.enabledModules.filter(id => MODULE_DEFINITIONS.some(module => module.id === id)))],
+      isOnboardingCompleted: parsed.isOnboardingCompleted,
     };
   } catch {
     return DEFAULT_BUSINESS_CONFIG;

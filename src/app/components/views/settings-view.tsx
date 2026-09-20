@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Edit2, Shield, Trash2, Users } from 'lucide-react';
-import { RBAC_PERMISSIONS, ROLE_LABELS, UserRole } from '../../config/business-config';
+import { Link } from 'react-router';
+import { BusinessConfig, RBAC_PERMISSIONS, ROLE_LABELS, UserRole } from '../../config/business-config';
+import { Button } from '../ui/button';
 
 const employees = [
   { id: 1, name: 'Иван Смирнов', email: 'ivan@mybusiness.ru', role: 'admin' as UserRole, status: 'Активен' },
@@ -12,7 +14,7 @@ const employees = [
 
 const roles: UserRole[] = ['owner', 'admin', 'coach'];
 
-export function SettingsView() {
+export function SettingsView({ config }: { config: BusinessConfig }) {
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [showPermissions, setShowPermissions] = useState(false);
 
@@ -20,9 +22,12 @@ export function SettingsView() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl">Команда и права доступа</h2>
-        <p className="text-muted-foreground mt-1">RBAC-модель: Владелец, Админ, Тренер</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl">Команда и права доступа</h2>
+          <p className="text-muted-foreground mt-1">{config.organizationName} · RBAC-модель: Владелец, Админ, Тренер</p>
+        </div>
+        <Button variant="outline" asChild><Link to="/constructor">Изменить модули CRM</Link></Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
