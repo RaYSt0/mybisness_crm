@@ -169,3 +169,71 @@ def test_student_delete_returns_no_content(client: TestClient) -> None:
     assert response.status_code == 204
     assert response.content == b""
     assert client.get(url).status_code == 404
+
+
+def test_lab3_workspace_configuration_is_stored_and_versioned(client: TestClient) -> None:
+    organization = create_organization(client)
+    url = f"/api/v1/organizations/{organization['id']}/workspace"
+    configuration = {
+        "category": "sport",
+        "description": "Детская спортивная секция",
+        "entities": [{"id": "clients", "plural": "Клиенты", "enabled": True}],
+        "processes": [],
+        "automations": [],
+    }
+
+    first = client.put(url, json={"configuration": configuration})
+    assert first.status_code == 200, first.text
+    assert first.json()["version"] == 1
+    assert first.json()["configuration"] == configuration
+
+    changed = {**configuration, "description": "Обновлённое описание"}
+    second = client.put(url, json={"configuration": changed})
+    assert second.status_code == 200
+    assert second.json()["version"] == 2
+    assert client.get(url).json()["configuration"] == changed
+
+    invalid = client.put(url, json={"configuration": {"entities": "not-a-list"}})
+    assert invalid.status_code == 422
+    assert client.get("/api/v1/organizations/9999/workspace").status_code == 404
+
+
+def test_lab3_client_crud_and_dynamic_server_summary_are_organization_scoped(client: TestClient) -> None:
+    first = create_organization(client, suffix="clients-one")
+    second = create_organization(client, suffix="clients-two")
+    first_url = f"/api/v1/organizations/{first['id']}/clients"
+    second_url = f"/api/v1/organizations/{second['id']}/clients"
+
+    created = client.post(first_url, json={
+        "name": "  Анна Смирнова  ",
+        "contact": "+7 900 111-22-33",
+        "email": "anna@example.com",
+        "status": "new",
+        "segment": "Группа А",
+    })
+    assert created.status_code == 201, created.text
+    assert created.json()["name"] == "Анна Смирнова"
+    client.post(first_url, json={"name": "Иван Петров", "status": "attention"})
+    other = client.post(second_url, json={"name": "Свой клиент"}).json()
+
+    searched = client.get(f"{first_url}?search=Анна")
+    assert searched.json()["total"] == 1
+    assert searched.json()["items"][0]["id"] == created.json()["id"]
+    assert client.get(f"{first_url}/{other['id']}").status_code == 404
+
+    updated = client.patch(f"{first_url}/{created.json()['id']}", json={"status": "active"})
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "active"
+
+    summary = client.get(f"/api/v1/organizations/{first['id']}/dashboard-summary")
+    assert summary.json() == {
+        "total_clients": 2,
+        "active_clients": 1,
+        "new_clients": 0,
+        "attention_clients": 1,
+    }
+    assert client.get(f"/api/v1/organizations/{second['id']}/dashboard-summary").json()["total_clients"] == 1
+
+    deleted = client.delete(f"{first_url}/{created.json()['id']}")
+    assert deleted.status_code == 204
+    assert client.get(f"/api/v1/organizations/{first['id']}/dashboard-summary").json()["total_clients"] == 1

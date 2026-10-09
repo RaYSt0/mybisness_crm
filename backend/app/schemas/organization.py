@@ -8,12 +8,29 @@ from app.schemas.student import StudentRead
 
 
 class BusinessType(StrEnum):
+    KIDS = "kids"
+    SPORT = "sport"
+    EDUCATION = "education"
+    WELLNESS = "wellness"
+    CLEANING = "cleaning"
+    FIELD = "field"
+    REPAIR = "repair"
+    OTHER = "other"
     DANCE = "dance"
     SPORTS = "sports"
     TUTORING = "tutoring"
 
 
 class BusinessModule(StrEnum):
+    CLIENTS = "clients"
+    TEAM = "team"
+    GROUPS = "groups"
+    DOCUMENTS = "documents"
+    TASKS = "tasks"
+    AUTOMATIONS = "automations"
+    REPORTS = "reports"
+    SCHEDULE = "schedule"
+    PAYMENTS = "payments"
     SUBSCRIPTIONS = "subscriptions"
     MEDICAL = "medical"
     SCHEDULING = "scheduling"
@@ -25,7 +42,7 @@ class OrganizationCreate(ORMModel):
     owner_name: str = Field(min_length=1, max_length=100)
     owner_email: EmailStr
     business_type: BusinessType
-    enabled_modules: list[BusinessModule] = Field(default_factory=list, max_length=4)
+    enabled_modules: list[BusinessModule] = Field(default_factory=list, max_length=9)
 
     @field_validator("name", "owner_name", mode="before")
     @classmethod
@@ -52,7 +69,7 @@ class OrganizationUpdate(ORMModel):
     owner_name: str | None = Field(default=None, min_length=1, max_length=100)
     owner_email: EmailStr | None = None
     business_type: BusinessType | None = None
-    enabled_modules: list[BusinessModule] | None = Field(default=None, max_length=4)
+    enabled_modules: list[BusinessModule] | None = Field(default=None, max_length=9)
 
     @field_validator("name", "owner_name", mode="before")
     @classmethod

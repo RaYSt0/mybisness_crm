@@ -23,3 +23,12 @@ class Organization(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    clients: Mapped[list["Client"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+    workspace_configuration: Mapped["WorkspaceConfiguration | None"] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
